@@ -1,9 +1,7 @@
 package net.respekto.psawebapi;
 
-import lombok.Cleanup;
 import lombok.val;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
@@ -11,15 +9,9 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.Arrays;
 
 
 @RunWith(SpringRunner.class)
@@ -81,7 +73,7 @@ public class DemoApplicationTests {
     @Test
     public void shouldNotPutService() {
         //given
-        testRestTemplate.put("/api/services/asdasdasdasd", new ServiceDTO("", "Mietek", "Car", "engine oil", "2016-10", 3));
+        testRestTemplate.put("/api/services/asdasdasdasd", new ServiceDTO("", "Patryk", "Car", "engine oil", "2016-10-03", 3));
 
         //when
         val actual = testRestTemplate.getForEntity("/api/services/search/2016-10", ServiceDTO[].class);
@@ -94,16 +86,14 @@ public class DemoApplicationTests {
     public void testingPDF() throws Exception {
 
         //given
-        ServiceDTO serviceDTO = new ServiceDTO("", "Mietek", "Car", "engine oil", "1995-01", 3);
+        ServiceDTO serviceDTO = new ServiceDTO("", "Patryk", "Car", "engine oil", "1995-01", 3);
         testRestTemplate.postForLocation("/api/services", serviceDTO);
 
 
         byte[] forObject = testRestTemplate.getForObject("/api/services/generatePdf/1995-01", byte[].class);
         //when
 
-        @Cleanup
         PDDocument document = PDDocument.load(forObject);
-
         PDFTextStripper stripper = new PDFTextStripper();
         String text = "";
         text = stripper.getText(document);
@@ -115,7 +105,7 @@ public class DemoApplicationTests {
     @Test
     public void shouldContainsClientName() {
         //given
-        ServiceDTO serviceDTO = new ServiceDTO("", "Mietek", "Car", "engine oil", "1995-01", 3);
+        ServiceDTO serviceDTO = new ServiceDTO("", "Patryk", "Car", "engine oil", "1995-01", 3);
 
         //when
         val body = testRestTemplate.getForEntity("/api/services/clients", String[].class).getBody();
@@ -136,7 +126,7 @@ public class DemoApplicationTests {
         testRestTemplate.postForLocation("/api/services", object3);
 
         //when
-        val body = testRestTemplate.getForEntity("/api/services/searchAll", ServiceDTO[].class).getBody();
+        val body = testRestTemplate.getForEntity("/api/services", ServiceDTO[].class).getBody();
 
         //then
         Assertions.assertThat(body).contains(object1).contains(object2).contains(object3);
