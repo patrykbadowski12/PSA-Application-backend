@@ -84,6 +84,7 @@ public class ServiceManager {
             }
             document.close();
             bytesFile = Files.readAllBytes(file.toPath());
+            //
             file.delete();
 
         } catch (FileNotFoundException e) {

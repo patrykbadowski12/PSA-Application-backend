@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +26,7 @@ public class ServiceController {
     private ServiceRepository serviceRepository;
 
     @PostMapping("/api/services")
-    public ResponseEntity<Mono<String>> createService(@RequestBody ServiceDTO serviceDTO) {
+    public ResponseEntity<Mono<String>> createService(@Valid @RequestBody ServiceDTO serviceDTO) {
         ServiceDbModel newEntry = new ServiceDbModel();
         newEntry.setId(UUID.randomUUID().toString());
         newEntry.setDescription(serviceDTO.getDescription());
@@ -105,6 +106,5 @@ public class ServiceController {
 
         return ResponseEntity.ok(clientsList.stream().sorted().distinct().collect(Collectors.toList()));
     }
-
 
 }
