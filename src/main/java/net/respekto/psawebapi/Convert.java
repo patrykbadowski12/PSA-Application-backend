@@ -13,6 +13,7 @@ public class Convert {
         dto.setWho(it.getWho());
         dto.setWhen(it.getWhen());
         dto.setServiceType(it.getServiceType());
+        dto.setUser(it.getUser());
         return dto;
     }
 }

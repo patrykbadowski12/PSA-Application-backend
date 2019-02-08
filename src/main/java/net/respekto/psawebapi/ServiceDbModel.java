@@ -18,4 +18,5 @@ public class ServiceDbModel {
     private String description;
     private String when;
     private long distance;
+    private String user;
 }

@@ -6,6 +6,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.WebSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -23,10 +24,30 @@ public class ServiceController {
     @Autowired
     ServiceManager serviceManager;
     @Autowired
-    private ServiceRepository serviceRepository;
+    ServiceRepository serviceRepository;
+    @Autowired
+    StoredService storedService;
+
+
+    @PostMapping("/api/session")
+    public String session(WebSession session, @RequestBody String user){
+        if(!session.isStarted()){
+                session.start();
+        }
+
+        storedService.saveUser(session.getId(), user);
+        String userByKey = storedService.findById(session.getId());
+        System.out.println(userByKey);
+        System.out.println(session.getId());
+
+        return session.getId();
+    }
+
 
     @PostMapping("/api/services")
-    public ResponseEntity<Mono<String>> createService(@Valid @RequestBody ServiceDTO serviceDTO) {
+    public ResponseEntity<Mono<String>> createService(WebSession session, @Valid @RequestBody ServiceDTO serviceDTO) {
+
+
         ServiceDbModel newEntry = new ServiceDbModel();
         newEntry.setId(UUID.randomUUID().toString());
         newEntry.setDescription(serviceDTO.getDescription());
@@ -34,7 +55,7 @@ public class ServiceController {
         newEntry.setServiceType(serviceDTO.getServiceType());
         newEntry.setWhen(serviceDTO.getWhen());
         newEntry.setWho(serviceDTO.getWho());
-
+        newEntry.setUser(storedService.findById(session.getId()));
         Mono<ServiceDTO> result = serviceRepository.save(newEntry)
                 .map(Convert::toDTO);
 
@@ -42,19 +63,19 @@ public class ServiceController {
     }
 
     @GetMapping("/api/services")
-    public ResponseEntity<Flux<ServiceDTO>> findAll() {
+    public ResponseEntity<Flux<ServiceDTO>> findAll(WebSession session) {
 
-        Flux<ServiceDTO> result = serviceRepository.findAll()
+        Flux<ServiceDTO> result = serviceRepository.findByUser(storedService.findById(session.getId()))
                 .map(Convert::toDTO);
         return ResponseEntity.ok(result);
     }
 
 
     @GetMapping("/api/services/search/{period}")
-    public ResponseEntity<List<ServiceDTO>> getAllByPeriod(@PathVariable("period") String period) {
+    public ResponseEntity<List<ServiceDTO>> getAllByPeriod(WebSession session,@PathVariable("period") String period) {
 
         List<ServiceDTO> collect =
-                serviceRepository.findAll()
+                serviceRepository.findByUser(storedService.findById(session.getId()))
                         .toStream()
                         .filter(it -> it.getWhen().substring(0, 7).equals(period))
                         .map(Convert::toDTO)
@@ -95,16 +116,18 @@ public class ServiceController {
         return new ResponseEntity(stream, HttpStatus.OK);
     }
 
+//!!Error do poprawy
     @GetMapping("/api/services/clients")
-    public ResponseEntity<List<String>> listClients() {
+    public ResponseEntity<List<String>> listClients(WebSession session) {
 
         List<String> clientsList = new ArrayList<>();
-        serviceRepository.findAll()
+        serviceRepository.findByUser(storedService.findById(session.getId()))
                 .toStream()
                 .map(Convert::toDTO)
                 .forEach(item -> clientsList.add(item.getWho()));
+        List<String> collect = clientsList.stream().sorted().distinct().collect(Collectors.toList());
 
-        return ResponseEntity.ok(clientsList.stream().sorted().distinct().collect(Collectors.toList()));
+        return ResponseEntity.ok(collect);
     }
 
 }

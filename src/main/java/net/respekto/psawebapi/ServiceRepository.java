@@ -22,4 +22,6 @@ public interface ServiceRepository extends ReactiveMongoRepository<ServiceDbMode
     @Override
     Mono<ServiceDbModel> findById(String s);
 
+    Flux<ServiceDbModel> findByUser(String user);
+
 }

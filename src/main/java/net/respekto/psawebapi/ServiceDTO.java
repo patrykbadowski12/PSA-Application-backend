@@ -32,4 +32,6 @@ public class ServiceDTO {
 
     @Min(0)
     private long distance;
+
+    private String user;
 }
