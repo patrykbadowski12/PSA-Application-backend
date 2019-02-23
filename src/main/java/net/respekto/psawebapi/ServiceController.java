@@ -14,10 +14,9 @@ import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*", allowCredentials = "true")
 @RestController
 public class ServiceController {
 
@@ -34,11 +33,10 @@ public class ServiceController {
         if(!session.isStarted()){
                 session.start();
         }
-
         storedService.saveUser(session.getId(), user);
         String userByKey = storedService.findById(session.getId());
         System.out.println(userByKey);
-        System.out.println(session.getId());
+
 
         return session.getId();
     }
@@ -46,7 +44,6 @@ public class ServiceController {
 
     @PostMapping("/api/services")
     public ResponseEntity<Mono<String>> createService(WebSession session, @Valid @RequestBody ServiceDTO serviceDTO) {
-
 
         ServiceDbModel newEntry = new ServiceDbModel();
         newEntry.setId(UUID.randomUUID().toString());
@@ -72,16 +69,18 @@ public class ServiceController {
 
 
     @GetMapping("/api/services/search/{period}")
-    public ResponseEntity<List<ServiceDTO>> getAllByPeriod(WebSession session,@PathVariable("period") String period) {
+    public Mono<ResponseEntity<List<ServiceDTO>>> getAllByPeriod(WebSession session,@PathVariable("period") String period) {
 
-        List<ServiceDTO> collect =
-                serviceRepository.findByUser(storedService.findById(session.getId()))
-                        .toStream()
-                        .filter(it -> it.getWhen().substring(0, 7).equals(period))
-                        .map(Convert::toDTO)
-                        .collect(Collectors.toList());
 
-        return ResponseEntity.ok(collect);
+            return serviceRepository
+                .findByUser(storedService.findById(session.getId()))
+                .map(Convert::toDTO)
+                .reduce(new ArrayList<ServiceDTO>(), (acc,v)->{
+                    if(v.getWhen().substring(0,7).equals(period)) {
+                        acc.add(v);
+                    }
+                    return acc; })
+                .map(ResponseEntity::ok);
     }
 
     @DeleteMapping("/api/services/{id}")
@@ -107,27 +106,34 @@ public class ServiceController {
     }
 
     @RequestMapping(value = "/api/services/generatePdf/{period}", method = RequestMethod.GET, produces = "application/pdf")
-    public ResponseEntity<Resource> downloadPDFFile(@PathVariable("period") String period) {
+    public ResponseEntity<Resource> downloadPDFFile(@PathVariable("period") String period, WebSession session) {
 
-        byte[] body = serviceManager.createpdf(period);
+        byte[] body = serviceManager.createpdf(period, session);
 
         ByteArrayResource stream = new ByteArrayResource(body);
 
         return new ResponseEntity(stream, HttpStatus.OK);
     }
 
-//!!Error do poprawy
     @GetMapping("/api/services/clients")
-    public ResponseEntity<List<String>> listClients(WebSession session) {
+    public Mono<ResponseEntity<List<String>>> listClients(WebSession session) {
 
-        List<String> clientsList = new ArrayList<>();
-        serviceRepository.findByUser(storedService.findById(session.getId()))
-                .toStream()
+        return serviceRepository.findByUser(storedService.findById(session.getId()))
                 .map(Convert::toDTO)
-                .forEach(item -> clientsList.add(item.getWho()));
-        List<String> collect = clientsList.stream().sorted().distinct().collect(Collectors.toList());
-
-        return ResponseEntity.ok(collect);
+                .reduce(new ArrayList<String>(), (acc, v) -> {
+                    if(!acc.contains(v.getWho())){
+                        acc.add(v.getWho());
+                    }
+                    return acc;
+                })
+                .map(ResponseEntity::ok);
     }
 
+    @GetMapping("/api/services/clients2")
+    public Flux<ServiceDbModel> getAllByPeriod2(WebSession session) {
+
+
+        return serviceRepository.findAll();
+
+    }
 }

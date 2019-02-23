@@ -43,7 +43,7 @@ public class DemoApplicationTests {
 
     }
 
-    /*
+
     @Test
     public void shouldNotStoreService() {
         //given
@@ -150,6 +150,6 @@ public class DemoApplicationTests {
         //then
         Assertions.assertThat(body).contains(object1).contains(object2).contains(object3);
     }
-*/
+
 }
 
