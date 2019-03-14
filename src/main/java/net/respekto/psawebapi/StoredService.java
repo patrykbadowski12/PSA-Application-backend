@@ -21,12 +21,4 @@ public class StoredService {
         final String user = userTemplate.opsForValue().get(userId);
         return user;
     }
-
-    /*void dupa(){
-        Flux<String> findById;
-        Function<String,Flux<Integer>> findServices;
-
-        Flux<Integer> integerFlux = findById.flatMap(findServices);
-    }*/
-
 }

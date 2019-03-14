@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "serviceDTO")
-public class ServiceDbModel {
+public class ServiceDbModel implements Comparable<ServiceDbModel>{
     @Id
     private String id;
     private String who;
@@ -19,4 +19,9 @@ public class ServiceDbModel {
     private String when;
     private long distance;
     private String user;
+
+    @Override
+    public int compareTo(ServiceDbModel o) {
+        return this.who.hashCode() - o.getWho().hashCode();
+    }
 }

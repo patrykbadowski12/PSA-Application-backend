@@ -3,23 +3,16 @@ package net.respekto.psawebapi;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
-import com.itextpdf.text.pdf.qrcode.ByteArray;
-import org.apache.pdfbox.io.IOUtils;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.WebSession;
-import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import sun.nio.ch.IOUtil;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Observable;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ServiceManager {
@@ -30,72 +23,77 @@ public class ServiceManager {
     @Autowired
     StoredService storedService;
 
-    public byte[] createpdf(String period, WebSession session) {
+    @SneakyThrows
+    public Mono<byte[]> createPdf(String period, WebSession session) {
+        ArrayList<String> dupa = new ArrayList<>();
 
+        File file = File.createTempFile("pdf", ".pdf");
+        FileOutputStream fileout = new FileOutputStream(file);
+        Document document = new Document();
+        PdfWriter.getInstance(document, fileout);
+        document.open();
+        AtomicReference<String> temp = new AtomicReference<>("");
 
-        byte[] bytesFile = new byte[0];
+        PdfPTable table = new PdfPTable(4);
+        Paragraph date = new Paragraph(period);
 
-        try {
-            File file = File.createTempFile("pdf", ".pdf");
-            FileOutputStream fileout = new FileOutputStream(file);
-            Document document = new Document();
-            PdfWriter.getInstance(document, fileout);
-            document.open();
+        return serviceRepository.findByUser(storedService.findById(session.getId()))
+                .sort()
+                .map(serviceDbModel -> {
+                    try {
+                        if (serviceDbModel.getWhen().substring(0, 7).equals(period)) {
+                            if (!serviceDbModel.getWho().equals(temp.toString())) {
 
-            serviceRepository.findByUser(storedService.findById(session.getId()))
-                    .reduce(new ArrayList<String>(), (acc, it) -> {
-                        System.out.println(storedService.findById(session.getId()));
-                        acc.add(it.getServiceType());
-                        System.out.println(it.getServiceType());
+                                document.add(table);
+                                table.flushContent();
+                                temp.set(serviceDbModel.getWho());
+                                document.newPage();
+                                document.add(date);
+                                date.setAlignment(Element.ALIGN_CENTER);
+                                Paragraph client = new Paragraph(serviceDbModel.getWho());
+                                client.setAlignment(Element.ALIGN_CENTER);
+                                document.add(client);
+                                document.add(new Phrase("\n"));
+                                table.setWidths(new int[]{1, 1, 1, 1});
 
-                        Paragraph date = new Paragraph(period);
-                        date.setAlignment(Element.ALIGN_CENTER);
-                        try {
-                            document.add(date);
-                            Paragraph client = new Paragraph(it.getWho());
-                            client.setAlignment(Element.ALIGN_CENTER);
-                            document.add(client);
-                            document.add(new Phrase("\n"));
+                                table.addCell("Service Type");
+                                table.addCell("Description");
+                                table.addCell("Date");
+                                table.addCell("Distance");
+                            }
 
-                            PdfPTable table = new PdfPTable(4);
-                            table.setWidths(new int[]{1, 1, 1, 1});
-
-                            table.addCell("Service Type");
-                            table.addCell("Description");
-                            table.addCell("Date");
-                            table.addCell("Distance");
-
-                            Long totalDistance = Long.valueOf(0);
-
-                            document.add(table);
-                            document.add(new Paragraph("Total distance: " + String.valueOf(totalDistance)));
-                            document.newPage();
-
-
-                        } catch (DocumentException e) {
-                            e.printStackTrace();
+                            table.addCell(serviceDbModel.getServiceType());
+                            table.addCell(serviceDbModel.getDescription());
+                            table.addCell(serviceDbModel.getWhen());
+                            table.addCell(String.valueOf(serviceDbModel.getDistance()));
                         }
 
-                        return acc;
-                    }).then(
-            ).subscribe();
+                    } catch (DocumentException e) {
+                        e.printStackTrace();
+                    }
 
-            bytesFile = Files.readAllBytes(file.toPath());
+                    return serviceDbModel;
+                })
+                .reduce(new ArrayList<ServiceDbModel>(), (acc, it) -> {
+                    return acc;
+                })
+                .map(ignored -> {
+                    try {
+                        document.add(table);
+                    } catch (DocumentException e) {
+                        e.printStackTrace();
+                    }
+                    document.close();
 
-            file.delete();
-            document.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (DocumentException e) {
-            e.printStackTrace();
-        }catch (IOException e){
-            e.printStackTrace();
-        }
+                    byte[] bytesFile = new byte[0];
+                    try {
+                        bytesFile = Files.readAllBytes(file.toPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    file.delete();
 
-        return bytesFile;
-
-
+                    return bytesFile;
+                });
     }
-
-
 }

@@ -2,6 +2,7 @@ package net.respekto.psawebapi;
 
 import lombok.val;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class Given {
@@ -13,6 +14,7 @@ public class Given {
         dto.setDescription("description "+ UUID.randomUUID().toString());
         dto.setWhen("2000-13");
         dto.setDistance(distance++);
+        dto.setUser("Patryk");
         return dto;
     }
 }

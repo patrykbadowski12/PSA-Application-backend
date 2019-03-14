@@ -28,18 +28,28 @@ public class ServiceController {
     StoredService storedService;
 
 
-    @PostMapping("/api/session")
-    public String session(WebSession session, @RequestBody String user){
+    @PostMapping("/api/session/login")
+    public String login(WebSession session, @RequestBody String user){
         if(!session.isStarted()){
                 session.start();
         }
         storedService.saveUser(session.getId(), user);
         String userByKey = storedService.findById(session.getId());
+        System.out.println(session.getId());
         System.out.println(userByKey);
-
 
         return session.getId();
     }
+
+    @PostMapping("api/session/logout")
+     ResponseEntity<String> logout(WebSession session){
+            if(!session.isStarted())
+                return ResponseEntity.badRequest().build();
+
+            session.invalidate().subscribe();
+
+            return ResponseEntity.ok().build();
+        }
 
 
     @PostMapping("/api/services")
@@ -67,10 +77,8 @@ public class ServiceController {
         return ResponseEntity.ok(result);
     }
 
-
     @GetMapping("/api/services/search/{period}")
     public Mono<ResponseEntity<List<ServiceDTO>>> getAllByPeriod(WebSession session,@PathVariable("period") String period) {
-
 
             return serviceRepository
                 .findByUser(storedService.findById(session.getId()))
@@ -92,13 +100,15 @@ public class ServiceController {
     }
 
     @PutMapping("/api/services/{id}")
-    public Mono<ResponseEntity> put(@PathVariable("id") String id, @RequestBody ServiceDTO serviceDTO) {
+    public Mono<ResponseEntity> put(@PathVariable("id") String id, @RequestBody ServiceDTO serviceDTO, WebSession session) {
         return serviceRepository.findById(id)
                 .flatMap(existingService -> {
+                    existingService.setId(id);
                     existingService.setDescription(serviceDTO.getDescription());
                     existingService.setWhen(serviceDTO.getWhen());
                     existingService.setServiceType(serviceDTO.getServiceType());
                     existingService.setDistance(serviceDTO.getDistance());
+                    existingService.setUser(storedService.findById(session.getId()));
                     return serviceRepository.save(existingService);
                 })
                 .map(updatedService -> new ResponseEntity(HttpStatus.OK))
@@ -106,13 +116,12 @@ public class ServiceController {
     }
 
     @RequestMapping(value = "/api/services/generatePdf/{period}", method = RequestMethod.GET, produces = "application/pdf")
-    public ResponseEntity<Resource> downloadPDFFile(@PathVariable("period") String period, WebSession session) {
+    public Mono<ResponseEntity<Resource>> downloadPDFFile(@PathVariable("period") String period, WebSession session) {
 
-        byte[] body = serviceManager.createpdf(period, session);
-
-        ByteArrayResource stream = new ByteArrayResource(body);
-
-        return new ResponseEntity(stream, HttpStatus.OK);
+        return serviceManager
+                .createPdf(period, session)
+                .map(stream->new ByteArrayResource(stream))
+                .map(stream->ResponseEntity.ok(stream));
     }
 
     @GetMapping("/api/services/clients")
@@ -132,8 +141,7 @@ public class ServiceController {
     @GetMapping("/api/services/clients2")
     public Flux<ServiceDbModel> getAllByPeriod2(WebSession session) {
 
-
-        return serviceRepository.findAll();
+        return serviceRepository.findByUser("testowy").sort();
 
     }
 }
